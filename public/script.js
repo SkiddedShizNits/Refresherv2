@@ -10,27 +10,21 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const originalButtonText = refreshButton.textContent;
+        const originalButtonText = "Refresh";
         refreshButton.disabled = true;
-        refreshButton.textContent = "Processing...";
+        refreshButton.innerHTML = "Processing...";
         showResult("Please wait, contacting server...", "normal");
 
-        // Create a controller to handle timeouts
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            controller.abort(); // Abort the fetch request after 15 seconds
-        }, 15000); // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
             const response = await fetch(`/api/refresh?cookie=${encodeURIComponent(cookie)}`, {
-                signal: controller.signal // Link the controller to the fetch request
+                signal: controller.signal
             });
-
-            // Clear the timeout timer as soon as we get a response
             clearTimeout(timeoutId);
 
             const data = await response.json();
-
             if (!response.ok) {
                 throw new Error(data.error || "An unknown error occurred on the server.");
             }
@@ -43,21 +37,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                // This specifically catches our timeout error
                 showResult("Error: The server took too long to respond. Please try again later.", "error");
             } else {
-                // This catches other errors like network issues or server crashes
                 showResult(`Error: ${error.message}`, "error");
             }
         } finally {
-            clearTimeout(timeoutId); // Ensure timer is always cleared
+            clearTimeout(timeoutId);
             refreshButton.disabled = false;
-            refreshButton.textContent = originalButtonText;
+            refreshButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5v9l8-4.5-8-4.5z" stroke-width="1.8" stroke-linejoin="round"/></svg> ${originalButtonText}`;
         }
     });
 
     function showResult(message, type) {
-        resultElement.className = 'result'; // Reset class
+        resultElement.className = 'result';
         if (type) {
             resultElement.classList.add(type);
         }
