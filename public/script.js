@@ -1,59 +1,73 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Main page elements
     const cookieInput = document.getElementById("cookieInput");
     const refreshButton = document.getElementById("refreshButton");
     const resultElement = document.getElementById("result");
 
+    // Modal elements
+    const cookieModal = document.getElementById("cookieModal");
+    const newCookieOutput = document.getElementById("newCookieOutput");
+    const copyCookieBtn = document.getElementById("copyCookieBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+
     refreshButton.addEventListener("click", async () => {
         const cookie = cookieInput.value.trim();
         if (!cookie) {
-            showResult("Please paste a cookie first.", "error");
+            showError("Please paste a cookie first.");
             return;
         }
 
-        const originalButtonText = "Refresh";
+        const originalButtonHTML = refreshButton.innerHTML;
         refreshButton.disabled = true;
         refreshButton.innerHTML = "Processing...";
-        showResult("Please wait, contacting server...", "normal");
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        resultElement.style.display = "none";
 
         try {
-            const response = await fetch(`/api/refresh?cookie=${encodeURIComponent(cookie)}`, {
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
+            const response = await fetch(`/api/refresh?cookie=${encodeURIComponent(cookie)}`);
             const data = await response.json();
+
             if (!response.ok) {
-                throw new Error(data.error || "An unknown error occurred on the server.");
+                throw new Error(data.error || "An unknown server error occurred.");
             }
             
-            if (data && data.refreshedCookie) {
-                showResult(`Success! New cookie: ${data.refreshedCookie}`, "success");
-            } else {
-                throw new Error("Server responded successfully, but no new cookie was found.");
-            }
+            showSuccessModal(data.refreshedCookie);
 
         } catch (error) {
-            if (error.name === 'AbortError') {
-                showResult("Error: The server took too long to respond. Please try again later.", "error");
-            } else {
-                showResult(`Error: ${error.message}`, "error");
-            }
+            showError(error.message);
         } finally {
-            clearTimeout(timeoutId);
             refreshButton.disabled = false;
-            refreshButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5v9l8-4.5-8-4.5z" stroke-width="1.8" stroke-linejoin="round"/></svg> ${originalButtonText}`;
+            refreshButton.innerHTML = originalButtonHTML;
         }
     });
 
-    function showResult(message, type) {
-        resultElement.className = 'result';
-        if (type) {
-            resultElement.classList.add(type);
-        }
-        resultElement.textContent = message;
+    function showSuccessModal(newCookie) {
+        newCookieOutput.value = newCookie;
+        cookieModal.classList.add("visible");
+    }
+
+    function showError(message) {
+        resultElement.className = 'result error';
+        resultElement.textContent = `Error: ${message}`;
         resultElement.style.display = 'block';
     }
+    
+    copyCookieBtn.addEventListener("click", () => {
+        newCookieOutput.select();
+        document.execCommand("copy");
+        copyCookieBtn.textContent = "Copied!";
+        setTimeout(() => {
+            copyCookieBtn.textContent = "Copy Cookie";
+        }, 2000);
+    });
+
+    const closeModal = () => {
+        cookieModal.classList.remove("visible");
+    };
+
+    closeModalBtn.addEventListener("click", closeModal);
+    cookieModal.addEventListener("click", (e) => {
+        if (e.target === cookieModal) {
+            closeModal();
+        }
+    });
 });
