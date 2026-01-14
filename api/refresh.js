@@ -1,62 +1,62 @@
 const axios = require('axios');
 
-async function fetchSessionCSRFToken(roblosecurityCookie) {
+async function getCsrfToken(cookie) {
     try {
         await axios.post("https://auth.roblox.com/v2/logout", {}, {
-            headers: {
-                'Cookie': `.ROBLOSECURITY=${roblosecurityCookie}`
-            }
+            headers: { 'Cookie': `.ROBLOSECURITY=${cookie}` }
         });
-
         return null;
     } catch (error) {
-        return error.response?.headers["x-csrf-token"] || null;
+        if (error.response && error.response.headers['x-csrf-token']) {
+            return error.response.headers['x-csrf-token'];
+        }
+        throw new Error("Failed to get CSRF token. The cookie might be expired or invalid.");
     }
 }
 
-async function generateAuthTicket(roblosecurityCookie) {
+async function generateAuthTicket(cookie, token) {
     try {
-        const csrfToken = await fetchSessionCSRFToken(roblosecurityCookie);
         const response = await axios.post("https://auth.roblox.com/v1/authentication-ticket", {}, {
             headers: {
-                "x-csrf-token": csrfToken,
-                "referer": "https://www.roblox.com/madebySynaptrixBitch",
-                'Content-Type': 'application/json',
-                'Cookie': `.ROBLOSECURITY=${roblosecurityCookie}`
+                'Cookie': `.ROBLOSECURITY=${cookie}`,
+                'x-csrf-token': token,
+                'Referer': 'https://www.roblox.com/games'
             }
         });
-
-        return response.headers['rbx-authentication-ticket'] || "Failed to fetch auth ticket";
+        const ticket = response.headers['rbx-authentication-ticket'];
+        if (!ticket) throw new Error("Authentication ticket was not found in the response.");
+        return ticket;
     } catch (error) {
-        return "Failed to fetch auth ticket";
+        throw new Error(`Failed to generate auth ticket: ${error.message}`);
     }
 }
 
-async function redeemAuthTicket(authTicket) {
+async function redeemAuthTicket(ticket) {
     try {
         const response = await axios.post("https://auth.roblox.com/v1/authentication-ticket/redeem", {
-            "authenticationTicket": authTicket
+            authenticationTicket: ticket
         }, {
-            headers: {
-                'RBXAuthenticationNegotiation': '1'
-            }
+            headers: { 'RBXAuthenticationNegotiation': '1' }
         });
 
-        const refreshedCookieData = response.headers['set-cookie']?.toString() || "";
+        const setCookieHeader = response.headers['set-cookie'];
+        if (!setCookieHeader) throw new Error("New cookie was not found in the redemption response.");
 
-        return {
-            success: true,
-            refreshedCookie: refreshedCookieData.match(/(_\|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.\|_[A-Za-z0-9]+)/g)?.toString()
-        };
+        const newCookie = setCookieHeader[0].match(/_\|[A-Za-z0-9_|-]+/);
+        if (!newCookie || !newCookie[0]) throw new Error("Could not parse the new cookie from headers.");
+
+        return newCookie[0];
     } catch (error) {
-        return {
-            success: false,
-            robloxDebugResponse: error.response?.data
-        };
+        const errorMessage = error.response?.data?.errors?.[0]?.message || error.message;
+        throw new Error(`Failed to redeem ticket: ${errorMessage}`);
     }
 }
 
-module.exports = {
-    generateAuthTicket,
-    redeemAuthTicket
-};
+async function refreshCookie(cookie) {
+    const token = await getCsrfToken(cookie);
+    const ticket = await generateAuthTicket(cookie, token);
+    const newCookie = await redeemAuthTicket(ticket);
+    return newCookie;
+}
+
+module.exports = { refreshCookie };
