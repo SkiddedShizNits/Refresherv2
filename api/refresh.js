@@ -10,7 +10,7 @@ async function getCsrfToken(cookie) {
         if (error.response && error.response.headers['x-csrf-token']) {
             return error.response.headers['x-csrf-token'];
         }
-        throw new Error("Failed to get CSRF token. The cookie might be expired or invalid.");
+        throw new Error("CSRF token not found. The provided cookie is likely completely invalid or expired.");
     }
 }
 
@@ -40,12 +40,21 @@ async function redeemAuthTicket(ticket) {
         });
 
         const setCookieHeader = response.headers['set-cookie'];
-        if (!setCookieHeader) throw new Error("New cookie was not found in the redemption response.");
+        if (!setCookieHeader || setCookieHeader.length === 0) {
+            throw new Error("Roblox did not return a new cookie. The original cookie is likely expired or invalid.");
+        }
 
-        const newCookie = setCookieHeader[0].match(/_\|[A-Za-z0-9_|-]+/);
-        if (!newCookie || !newCookie[0]) throw new Error("Could not parse the new cookie from headers.");
+        for (const cookie of setCookieHeader) {
+            if (cookie.includes('.ROBLOSECURITY')) {
+                const newCookie = cookie.match(/\.ROBLOSECURITY=(_\|[A-Za-z0-9_|-]+)/);
+                if (newCookie && newCookie[1]) {
+                    return newCookie[1];
+                }
+            }
+        }
+        
+        throw new Error("Could not parse the new .ROBLOSECURITY cookie from the headers.");
 
-        return newCookie[0];
     } catch (error) {
         const errorMessage = error.response?.data?.errors?.[0]?.message || error.message;
         throw new Error(`Failed to redeem ticket: ${errorMessage}`);
