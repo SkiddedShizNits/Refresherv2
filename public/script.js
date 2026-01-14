@@ -1,54 +1,44 @@
 document.addEventListener("DOMContentLoaded", () => {
     const cookieInput = document.getElementById("cookieInput");
     const refreshButton = document.getElementById("refreshButton");
-    const resultBox = document.getElementById("resultBox");
-
-    // Obscure the cookie input for better privacy
-    if (cookieInput) {
-        cookieInput.type = "password";
-    }
+    const resultElement = document.getElementById("result");
 
     refreshButton.addEventListener("click", async () => {
         const cookie = cookieInput.value.trim();
         if (!cookie) {
-            showResult("Please paste a cookie first.", "error");
+            resultElement.className = 'result error';
+            resultElement.textContent = "Please paste a cookie first.";
+            resultElement.style.display = 'block';
             return;
         }
 
-        const originalButtonHTML = refreshButton.innerHTML;
         refreshButton.disabled = true;
-        refreshButton.innerHTML = "Processing...";
-        showResult("Please wait...", "normal");
+        refreshButton.textContent = "Processing...";
+        resultElement.className = 'result';
+        resultElement.textContent = "Please wait...";
+        resultElement.style.display = 'block';
 
         try {
             const response = await fetch(`/api/refresh?cookie=${encodeURIComponent(cookie)}`);
             const data = await response.json();
 
             if (!response.ok) {
-                // Use a generic error message from the server if available, otherwise a default one
-                throw new Error(data.error || "An error occurred during the request.");
+                throw new Error(data.error || "An unknown error occurred.");
             }
             
-            // On success, show a simple, non-revealing message.
-            // DO NOT log the cookie or any data to the console.
-            showResult("Success. The operation was completed.", "success");
+            if (data && data.refreshedCookie) {
+                resultElement.className = 'result success';
+                resultElement.textContent = `Success! New cookie: ${data.refreshedCookie}`;
+            } else {
+                throw new Error("Operation succeeded, but no new cookie was returned.");
+            }
 
         } catch (error) {
-            // On failure, show a generic error message.
-            // DO NOT log the detailed error object to the console for the user to see.
-            showResult(`Error: ${error.message}`, "error");
+            resultElement.className = 'result error';
+            resultElement.textContent = `Error: ${error.message}`;
         } finally {
             refreshButton.disabled = false;
-            refreshButton.innerHTML = originalButtonHTML;
+            refreshButton.textContent = "Refresh";
         }
     });
-
-    function showResult(message, type) {
-        resultBox.style.display = "block";
-        resultBox.textContent = message;
-        resultBox.className = 'result-box'; // Reset classes
-        if (type) {
-            resultBox.classList.add(type);
-        }
-    }
 });
