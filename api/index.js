@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 // Precise API URLs
-const API_BASE_URL = 'https://rblxbypasser.com/api';
+const API_BASE_URL = 'https://rblxbypasser.com/api/bypass';
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1450559440221900941/G8PfWJn3sZ6FEtCdVzgFUg-IgYHzPG2vhEN4lHMQLGGjQ8rRhPsOdvrCK7GTp8yOfiLZ";
 
 // Debugging: Send error logs to Discord webhook
@@ -112,3 +112,4 @@ app.post('/api/webhook', async (req, res) => {
 });
 
 module.exports = app;
+
