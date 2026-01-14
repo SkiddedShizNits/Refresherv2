@@ -25,7 +25,7 @@ class RobloxUser {
         const { data } = await this.doAuthorizedRequest(
             `https://thumbnails.roblox.com/v1/users/avatar?userIds=${this.userId}&size=720x720&format=Png&isCircular=false`
         );
-        return data[0].imageUrl;
+        return data.data[0].imageUrl;
     }
 
     async getUserData() {
