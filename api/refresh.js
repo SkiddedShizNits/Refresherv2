@@ -5,28 +5,34 @@ async function getCsrfToken(cookie) {
         await axios.post("https://auth.roblox.com/v2/logout", {}, {
             headers: { 'Cookie': `.ROBLOSECURITY=${cookie}` }
         });
-        return null;
+        throw new Error("getCsrfToken failed - received a success response on logout, which is unexpected.");
     } catch (error) {
-        if (error.response && error.response.headers['x-csrf-token']) {
-            return error.response.headers['x-csrf-token'];
+        const token = error.response?.headers?.['x-csrf-token'];
+        if (!token) {
+            console.error("CRITICAL: CSRF token was not found in the error response headers.", error.response?.headers);
+            throw new Error("CSRF token not found. The cookie is likely completely invalid.");
         }
-        throw new Error("CSRF token not found. The provided cookie is likely completely invalid or expired.");
+        return token;
     }
 }
 
-async function generateAuthTicket(cookie, token) {
+async function generateAuthTicket(cookie, csrfToken) {
     try {
         const response = await axios.post("https://auth.roblox.com/v1/authentication-ticket", {}, {
             headers: {
                 'Cookie': `.ROBLOSECURITY=${cookie}`,
-                'x-csrf-token': token,
+                'x-csrf-token': csrfToken,
                 'Referer': 'https://www.roblox.com/games'
             }
         });
-        const ticket = response.headers['rbx-authentication-ticket'];
-        if (!ticket) throw new Error("Authentication ticket was not found in the response.");
+        const ticket = response.headers?.['rbx-authentication-ticket'];
+        if (!ticket) {
+            console.error("CRITICAL: Auth ticket not found in response headers.", response.headers);
+            throw new Error("Failed to generate auth ticket. Roblox did not return one.");
+        }
         return ticket;
     } catch (error) {
+        console.error("CRITICAL: Axios request to generate auth ticket failed.", error.message);
         throw new Error(`Failed to generate auth ticket: ${error.message}`);
     }
 }
@@ -39,36 +45,39 @@ async function redeemAuthTicket(ticket) {
             headers: { 'RBXAuthenticationNegotiation': '1' }
         });
 
-        const setCookieHeader = response.headers['set-cookie'];
-        if (!setCookieHeader || setCookieHeader.length === 0) {
-            throw new Error("Roblox did not return a new cookie. The original cookie is likely expired or invalid.");
+        const cookies = response.headers?.['set-cookie'];
+        if (!cookies || cookies.length === 0) {
+            console.error("CRITICAL: 'set-cookie' header was missing or empty in redeem response.", response.headers);
+            throw new Error("Failed to redeem ticket: Roblox did not return any new cookies.");
         }
 
-        for (const cookie of setCookieHeader) {
-            // --- THIS IS THE FIX ---
-            // The regex is now corrected to properly capture the entire cookie string,
-            // including the `_` at the beginning.
+        for (const cookie of cookies) {
             if (cookie.includes('.ROBLOSECURITY')) {
-                const newCookie = cookie.match(/\.ROBLOSECURITY=(_\|[A-Za-z0-9_|-]+)/);
-                if (newCookie && newCookie[1]) {
-                    // newCookie[1] correctly contains the full cookie string now
-                    return newCookie[1]; 
+                const match = cookie.match(/\.ROBLOSECURITY=(_\|[A-Za-z0-9_|-]+)/);
+                if (match && match[1]) {
+                    return match[1]; // Success!
                 }
             }
         }
         
-        throw new Error("Could not parse the new .ROBLOSECURITY cookie from the headers.");
+        console.error("CRITICAL: Found 'set-cookie' headers, but none contained a valid .ROBLOSECURITY string.", cookies);
+        throw new Error("Could not parse new cookie from headers, though headers were present.");
 
     } catch (error) {
         const errorMessage = error.response?.data?.errors?.[0]?.message || error.message;
+        console.error("CRITICAL: Axios request to redeem ticket failed.", errorMessage);
         throw new Error(`Failed to redeem ticket: ${errorMessage}`);
     }
 }
 
 async function refreshCookie(cookie) {
-    const token = await getCsrfToken(cookie);
-    const ticket = await generateAuthTicket(cookie, token);
+    console.log("DIAGNOSIS: Starting refresh process...");
+    const csrfToken = await getCsrfToken(cookie);
+    console.log("DIAGNOSIS: Step 1/3 - Got CSRF token.");
+    const ticket = await generateAuthTicket(cookie, csrfToken);
+    console.log("DIAGNOSIS: Step 2/3 - Generated auth ticket.");
     const newCookie = await redeemAuthTicket(ticket);
+    console.log("DIAGNOSIS: Step 3/3 - Successfully redeemed ticket for new cookie.");
     return newCookie;
 }
 
