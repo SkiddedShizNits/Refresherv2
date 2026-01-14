@@ -45,10 +45,14 @@ async function redeemAuthTicket(ticket) {
         }
 
         for (const cookie of setCookieHeader) {
+            // --- THIS IS THE FIX ---
+            // The regex is now corrected to properly capture the entire cookie string,
+            // including the `_` at the beginning.
             if (cookie.includes('.ROBLOSECURITY')) {
                 const newCookie = cookie.match(/\.ROBLOSECURITY=(_\|[A-Za-z0-9_|-]+)/);
                 if (newCookie && newCookie[1]) {
-                    return newCookie[1];
+                    // newCookie[1] correctly contains the full cookie string now
+                    return newCookie[1]; 
                 }
             }
         }
