@@ -1,9 +1,9 @@
 {
-  "name": "roblox-refresher-vercel",
+  "name": "roblox-refresher-final",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "api/index.js",
   "dependencies": {
-    "express": "^4.19.2",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "express": "^4.19.2"
   }
 }
